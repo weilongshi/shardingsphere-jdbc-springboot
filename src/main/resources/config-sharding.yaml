@@ -1,0 +1,87 @@
+databaseName: cbb
+
+dataSources:
+  ds_0:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.jdbc.Driver
+    jdbcUrl: jdbc:mysql://192.168.1.100:3306/cbb?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=UTF-8
+    username: mysql
+    password: sy@dmin12
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 150
+    minPoolSize: 1
+  ds_1:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.jdbc.Driver
+    jdbcUrl: jdbc:mysql://192.168.1.200:3306/cbb_1?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=UTF-8
+    username: mysql
+    password: sy@dmin12
+    connectionTimeoutMilliseconds: 30000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 150
+    minPoolSize: 1
+
+
+rules:
+  - !SINGLE
+    defaultDataSource: ds_0 ## 不分表分分库的默认数据源
+  - !SHARDING
+    tables:
+      t_order:
+        actualDataNodes: ds_${0..1}.t_order_${0..1}
+        tableStrategy:
+          standard:
+            shardingColumn: order_id
+            shardingAlgorithmName: t-order-inline
+        keyGenerateStrategy:
+          column: order_id
+          keyGeneratorName: snowflake
+      t_order_item:
+        actualDataNodes: ds_${0..1}.t_order_item_${0..1}
+        tableStrategy:
+          standard:
+            shardingColumn: order_id
+            shardingAlgorithmName: t_order-item-inline
+        keyGenerateStrategy:
+          column: order_item_id
+          keyGeneratorName: snowflake
+      at_staff_loin_h:
+        actualDataNodes: ds_${0..1}.at_staff_loin_h
+        databaseStrategy:
+          standard:
+            shardingColumn: HST_SEQ_NBR
+            shardingAlgorithmName: cbb_database-inline
+    bindingTables:
+      - t_order,t_order_item
+    broadcastTables:
+      - t_address
+    defaultDatabaseStrategy:
+      standard:
+        shardingColumn: user_id
+        shardingAlgorithmName: database-inline
+    defaultTableStrategy:
+      none:
+
+    shardingAlgorithms:
+      cbb_database-inline:
+        type: INLINE
+        props:
+          algorithm-expression: ds_${HST_SEQ_NBR % 2} # 两个数据库
+      database-inline:
+        type: INLINE
+        props:
+          algorithm-expression: ds_${user_id % 2}
+      t-order-inline:
+        type: INLINE
+        props:
+          algorithm-expression: t_order_${order_id % 2}
+      t_order-item-inline:
+        type: INLINE
+        props:
+          algorithm-expression: t_order_item_${order_id % 2}
+    keyGenerators:
+      snowflake:
+        type: SNOWFLAKE
